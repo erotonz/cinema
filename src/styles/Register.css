@@ -1,0 +1,99 @@
+.signup-modal {
+  width: 400px;
+  max-width: 100%;
+  margin: 40px auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+.signup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: linear-gradient(to right, #ff4081, #ff7043);
+  color: white;
+}
+
+.signup-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.close-button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.signup-content {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #ff4081;
+  font-weight: 500;
+}
+
+.required {
+  color: #ff4081;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ff4081;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 16px;
+  outline: none;
+}
+
+.login-link {
+  text-align: center;
+  margin: 20px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.login-link a {
+  color: #3f51b5;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.login-link a:hover {
+  text-decoration: underline;
+}
+
+.register-button {
+  width: 100%;
+  padding: 15px 0;
+  background-color: #ff0057;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.register-button:hover {
+  background-color: #e00050;
+} 

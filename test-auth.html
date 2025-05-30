@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Auth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        input, button {
+            margin: 5px 0;
+            padding: 8px;
+            width: 100%;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de l'API d'authentification</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Connexion (Signin)</h2>
+            <div>
+                <label for="signinUsername">Nom d'utilisateur:</label>
+                <input type="text" id="signinUsername" value="admin">
+            </div>
+            <div>
+                <label for="signinPassword">Mot de passe:</label>
+                <input type="password" id="signinPassword" value="password123">
+            </div>
+            <button onclick="signin()">Se connecter</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Inscription (Signup)</h2>
+            <div>
+                <label for="signupUsername">Nom d'utilisateur:</label>
+                <input type="text" id="signupUsername" value="newuser">
+            </div>
+            <div>
+                <label for="signupEmail">Email:</label>
+                <input type="email" id="signupEmail" value="newuser@example.com">
+            </div>
+            <div>
+                <label for="signupPassword">Mot de passe:</label>
+                <input type="password" id="signupPassword" value="password123">
+            </div>
+            <button onclick="signup()">S'inscrire</button>
+        </div>
+    </div>
+    
+    <h2>Résultats</h2>
+    <pre id="results">Les résultats apparaîtront ici...</pre>
+    
+    <script>
+        const baseUrl = 'http://localhost:8080';
+        const signinUrl = `${baseUrl}/api/auth/signin`;
+        const signupUrl = `${baseUrl}/api/auth/signup`;
+        
+        async function signin() {
+            const username = document.getElementById('signinUsername').value;
+            const password = document.getElementById('signinPassword').value;
+            
+            const data = { username, password };
+            
+            try {
+                const response = await fetch(signinUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('results').textContent = JSON.stringify(result, null, 2);
+                
+                if (response.ok) {
+                    console.log('Token JWT:', result.token);
+                }
+            } catch (error) {
+                document.getElementById('results').textContent = `Erreur: ${error.message}`;
+            }
+        }
+        
+        async function signup() {
+            const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            const data = {
+                username,
+                email,
+                password,
+                roles: ['USER']
+            };
+            
+            try {
+                const response = await fetch(signupUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('results').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('results').textContent = `Erreur: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 
