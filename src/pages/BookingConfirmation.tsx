@@ -41,10 +41,10 @@ const BookingConfirmation: React.FC = () => {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Aucune information de réservation n'a été trouvée. Veuillez vérifier votre email pour les détails de votre réservation.
+          No booking information found. Please check your email for booking details.
         </Alert>
         <Button variant="contained" onClick={handleReturnHome}>
-          Retour à l'accueil
+          Return to Movies
         </Button>
       </Container>
     );
@@ -56,10 +56,10 @@ const BookingConfirmation: React.FC = () => {
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <CheckCircleOutlineIcon sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
           <Typography variant="h4" gutterBottom>
-            Réservation Confirmée
+            Booking Confirmed!
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Votre réservation a été confirmée avec succès. Un email de confirmation a été envoyé à votre adresse email.
+            Your booking has been successfully confirmed. A confirmation email has been sent to your email address.
           </Typography>
         </Box>
 
@@ -68,39 +68,39 @@ const BookingConfirmation: React.FC = () => {
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
             <Typography variant="h6" gutterBottom>
-              Détails de la Réservation
+              Booking Details
             </Typography>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1">Film</Typography>
+              <Typography variant="subtitle1">Movie</Typography>
               <Typography variant="body1" color="text.secondary">
                 {bookingData.movieTitle}
               </Typography>
             </Box>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1">Cinéma</Typography>
+              <Typography variant="subtitle1">Cinema</Typography>
               <Typography variant="body1" color="text.secondary">
                 {bookingData.theater}, {bookingData.city}
               </Typography>
             </Box>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1">Date et Heure</Typography>
+              <Typography variant="subtitle1">Date and Time</Typography>
               <Typography variant="body1" color="text.secondary">
-                {bookingData.date} à {bookingData.showtime}
+                {bookingData.date} at {bookingData.showtime}
               </Typography>
             </Box>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1">Places</Typography>
+              <Typography variant="subtitle1">Seats</Typography>
               <Typography variant="body1" color="text.secondary">
                 {bookingData.seats && bookingData.seats.join(', ')}
               </Typography>
             </Box>
             
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1">Numéro de Réservation</Typography>
+              <Typography variant="subtitle1">Booking Number</Typography>
               <Typography variant="body1" color="text.secondary">
                 #{bookingData._id?.substring(0, 8).toUpperCase() || 'N/A'}
               </Typography>
@@ -118,7 +118,7 @@ const BookingConfirmation: React.FC = () => {
               })} 
             />
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-              Présentez ce QR code à l'entrée du cinéma pour accéder à votre séance.
+              Present this QR code at the cinema entrance to access your session.
             </Typography>
           </Grid>
         </Grid>
@@ -132,7 +132,7 @@ const BookingConfirmation: React.FC = () => {
             onClick={handleReturnHome}
             sx={{ minWidth: 200 }}
           >
-            Retour à l'accueil
+            Return to Movies
           </Button>
         </Box>
       </Paper>

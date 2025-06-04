@@ -22,7 +22,7 @@ app.use(express.json());
 // Serve static files from the public directory
 app.use('/static', express.static(path.join(__dirname, 'public')));
 
-// Connect to MongoDB
+// Connect to   MongoDB
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,

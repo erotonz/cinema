@@ -4,6 +4,45 @@ const Booking = require('../models/Booking');
 const Movie = require('../models/Movie');
 const { sendBookingConfirmation } = require('../services/emailservice');
 const mongoose = require('mongoose');
+const { protect } = require('../middleware/auth');
+
+console.log('Loading bookings routes...'); // Add this log at the very beginning
+
+// @desc    Get all bookings (Organizer route) - Moved to top for debugging
+// @route   GET /api/bookings/organizer
+// @access  Private/Organizer
+console.log('Defining organizer route...'); // Log before route definition
+router.get('/organizer', /* temporairement sans protect, */ async (req, res) => { // Changed back to async
+  console.log('Executing organizer bookings route handler...'); // Log at start of handler
+  
+  try {
+    // Temporairement désactivé: Check if user is organizer
+    // if (req.user.role !== 'organizer') {
+    //   return res.status(403).json({...});
+    // }
+    console.log('Starting to fetch bookings from DB...'); // Log before DB query
+    const bookings = await Booking.find()
+      .populate('movie', 'title image')
+      .populate('user', 'username email') // Assuming user field exists and has username/email
+      .sort({ createdAt: -1 }); // Sort by newest first
+
+    console.log('Fetched bookings from DB:', bookings ? bookings.length : 'null/undefined'); // Log after DB query
+    // console.log('Fetched bookings details:', bookings); // Uncomment for detailed view if needed
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
+
+  } catch (err) {
+    console.error('Error in organizer bookings route handler:', err); // Log errors caught by catch block
+    res.status(500).json({
+      success: false,
+      error: 'Server Error: ' + err.message // Include error message
+    });
+  }
+});
 
 // @desc    Get all bookings
 // @route   GET /api/bookings
@@ -28,11 +67,12 @@ router.get('/', async (req, res) => {
 // @desc    Create new booking
 // @route   POST /api/bookings
 // @access  Private
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const {
       movieId, 
       showtime, 
+      date,
       seats, 
       theater,
       city,
@@ -107,6 +147,7 @@ router.post('/', async (req, res) => {
       email: email || (req.user ? req.user.email : ''),
       phone: phone || (req.user ? req.user.phone : ''),
       showtime,
+      date,
       seats: Array.isArray(seats) ? seats : [seats],
       theater,
       city,

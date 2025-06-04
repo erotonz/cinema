@@ -52,6 +52,10 @@ const AdminUsers = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    console.log('editUser state changed:', editUser);
+  }, [editUser]);
+
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users');
@@ -60,6 +64,7 @@ const AdminUsers = () => {
         id: user._id,
       }));
       setUsers(usersWithId);
+      console.log('Users state after fetch:', usersWithId);
     } catch (error) {
       console.error('Error fetching users:', error);
       setSnackbar({
@@ -92,8 +97,6 @@ const AdminUsers = () => {
   const handleAddUser = async () => {
     try {
       const response = await api.post('/users', newUser);
-      const addedUser = { ...response.data.data, id: response.data.data._id };
-      setUsers([...users, addedUser]);
       setOpenDialog(false);
       setNewUser({
         username: '',
@@ -107,6 +110,7 @@ const AdminUsers = () => {
         message: 'Utilisateur ajouté avec succès',
         severity: 'success'
       });
+      fetchUsers();
     } catch (error: any) {
       console.error('Error adding user:', error);
       setSnackbar({
@@ -118,16 +122,28 @@ const AdminUsers = () => {
   };
 
   const handleEditUser = (user: User) => {
-    setEditUser({ ...user, password: '' });
+    console.log('Editing user:', user);
+    setEditUser({ ...user, id: user.id, password: '' });
     setEditDialog(true);
   };
 
   const handleUpdateUser = async () => {
+    console.log('Attempting to update user with data:', editUser);
     try {
+      if (editUser === null || editUser === undefined || editUser.id === null || editUser.id === undefined) {
+        console.error('Edit user data is incomplete or missing ID.');
+        setSnackbar({
+          open: true,
+          message: 'Erreur: Les informations de l\'utilisateur à modifier sont incomplètes.',
+          severity: 'error'
+        });
+        return;
+      }
+
       const { id, username, email, phone, role, password } = editUser;
       const payload: any = { username, email, phone, role };
       if (password) payload.password = password;
-      const response = await api.put(`/users/${id}`, payload);
+      const response = await api.put(`/users/${editUser.id}`, payload);
       const updated = { ...response.data.data, id: response.data.data._id };
       setUsers(users.map(u => u.id === id ? updated : u));
       setEditDialog(false);
@@ -136,6 +152,7 @@ const AdminUsers = () => {
         message: 'Utilisateur modifié avec succès',
         severity: 'success'
       });
+      fetchUsers();
     } catch (error: any) {
       setSnackbar({
         open: true,
@@ -164,15 +181,17 @@ const AdminUsers = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom d'utilisateur</TableCell>
+              <TableCell>Username</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>Téléphone</TableCell>
-              <TableCell>Rôle</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Role</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.map((user) => (
+            {users.map((user) => {
+              console.log('User object in map:', user);
+              return (
               <TableRow key={user.id}>
                 <TableCell>{user.username}</TableCell>
                 <TableCell>{user.email}</TableCell>
@@ -194,17 +213,18 @@ const AdminUsers = () => {
                   </IconButton>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+        <DialogTitle>Add New User</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <TextField
-              label="Nom d'utilisateur"
+              label="Username"
               value={newUser.username}
               onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
               fullWidth
@@ -217,47 +237,45 @@ const AdminUsers = () => {
               fullWidth
             />
             <TextField
-              label="Mot de passe"
+              label="Password"
               type="password"
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
               fullWidth
             />
             <TextField
-              label="Téléphone"
+              label="Phone"
               value={newUser.phone}
               onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel id="role-label">Rôle</InputLabel>
+              <InputLabel id="role-label">Role</InputLabel>
               <Select
                 labelId="role-label"
                 value={newUser.role}
-                label="Rôle"
+                label="Role"
                 onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
               >
-                <MenuItem value="user">Utilisateur</MenuItem>
-                <MenuItem value="organizer">Organisateur</MenuItem>
-                <MenuItem value="admin">Administrateur</MenuItem>
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="organizer">Organizer</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Annuler</Button>
-          <Button onClick={handleAddUser} variant="contained">
-            Ajouter
-          </Button>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddUser} variant="contained">Add</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={editDialog} onClose={() => setEditDialog(false)}>
-        <DialogTitle>Modifier l'utilisateur</DialogTitle>
+        <DialogTitle>Edit User</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <TextField
-              label="Nom d'utilisateur"
+              label="Username"
               value={editUser?.username || ''}
               onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
               fullWidth
@@ -270,38 +288,36 @@ const AdminUsers = () => {
               fullWidth
             />
             <TextField
-              label="Mot de passe (laisser vide pour ne pas changer)"
+              label="Password (leave empty to keep current)"
               type="password"
               value={editUser?.password || ''}
               onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
               fullWidth
             />
             <TextField
-              label="Téléphone"
+              label="Phone"
               value={editUser?.phone || ''}
               onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel id="edit-role-label">Rôle</InputLabel>
+              <InputLabel id="edit-role-label">Role</InputLabel>
               <Select
                 labelId="edit-role-label"
                 value={editUser?.role || 'user'}
-                label="Rôle"
+                label="Role"
                 onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
               >
-                <MenuItem value="user">Utilisateur</MenuItem>
-                <MenuItem value="organizer">Organisateur</MenuItem>
-                <MenuItem value="admin">Administrateur</MenuItem>
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="organizer">Organizer</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialog(false)}>Annuler</Button>
-          <Button onClick={handleUpdateUser} variant="contained">
-            Enregistrer
-          </Button>
+          <Button onClick={() => setEditDialog(false)}>Cancel</Button>
+          <Button onClick={handleUpdateUser} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
 

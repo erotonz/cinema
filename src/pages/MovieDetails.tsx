@@ -185,6 +185,13 @@ const MovieDetails = () => {
   };
   
   const handleBooking = () => {
+    const user = getCurrentUser(); // Check if user is logged in
+    if (!user) {
+      // If not logged in, redirect to login page
+      navigate('/login');
+      return; // Stop the function here
+    }
+
     if (selectedCity && selectedTheater && selectedShowtime) {
       navigate(`/booking/${id}?city=${selectedCity}&theater=${selectedTheater}&time=${selectedShowtime}`);
     }

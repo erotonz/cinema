@@ -19,6 +19,7 @@ import {
   Alert,
   Chip,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import TheatersIcon from '@mui/icons-material/Theaters';
@@ -44,6 +45,10 @@ const Booking = () => {
   const [movie, setMovie] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState({
+    email: '',
+    phone: '',
+  });
 
   const time = searchParams.get('time');
   const city = searchParams.get('city');
@@ -58,48 +63,53 @@ const Booking = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`http://localhost:5001/api/movies/${movieId}`);
+        
+        // Construct the URL with query parameters for city, theater, and time
+        const url = `http://localhost:5001/api/movies/${movieId}?city=${city}&theater=${theater}&time=${time}`;
+        
+        const response = await fetch(url);
+        
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        if (data.success) {
+        if (data.success && data.data && data.data.cities && data.data.cities.length > 0 && data.data.cities[0].theaters && data.data.cities[0].theaters.length > 0 && data.data.cities[0].theaters[0].showtimes && data.data.cities[0].theaters[0].showtimes.length > 0) {
+          // The backend now returns data for the specific showtime, so we can set it directly
           setMovie(data.data);
         } else {
-          throw new Error(data.error || 'Failed to load movie');
+          // Handle cases where the specific showtime data was not found
+          setError('Showtime data not found for the selected city, theater, or time.');
+          setMovie(null); // Ensure movie state is null if showtime data is missing
         }
       } catch (err: any) {
-        console.error('Error fetching movie:', err);
-        setError(err.message || 'Failed to load movie');
+        console.error('Error fetching movie or showtime data:', err);
+        setError(err.message || 'Failed to load movie or showtime data.');
+        setMovie(null); // Ensure movie state is null on error
       } finally {
         setLoading(false);
       }
     };
 
-    if (movieId) {
-    fetchMovie();
+    // Only fetch if movieId, city, theater, and time are available
+    if (movieId && city && theater && time) {
+      fetchMovie();
+    } else if (!movieId) {
+       setError('Movie ID is missing.');
+       setLoading(false);
+    } else {
+       setError('City, theater, or time information is missing from the URL.');
+       setLoading(false);
     }
-  }, [movieId]);
+  }, [movieId, city, theater, time]); // Add dependencies
 
   // Récupérer les places disponibles pour cet horaire et ce cinéma
+  // This function is now simpler as the fetched movie data is already filtered by showtime
   const getAvailableSeats = () => {
-    if (!movie || !city || !theater || !time) return [];
-    
-    try {
-      const selectedCity = movie.cities.find((c: any) => c.name === city);
-      if (!selectedCity) return [];
-      
-      const selectedTheater = selectedCity.theaters.find((t: any) => t.name === theater);
-      if (!selectedTheater) return [];
-      
-      const selectedShowtime = selectedTheater.showtimes.find((s: any) => s.time === time);
-      if (!selectedShowtime) return [];
-      
-      return selectedShowtime.seats || [];
-    } catch (err) {
-      console.error('Error getting available seats:', err);
-      return [];
+    // Check if movie data and the showtime structure exist before accessing seats
+    if (movie && movie.cities && movie.cities.length > 0 && movie.cities[0].theaters && movie.cities[0].theaters.length > 0 && movie.cities[0].theaters[0].showtimes && movie.cities[0].theaters[0].showtimes.length > 0) {
+        return movie.cities[0].theaters[0].showtimes[0].seats || [];
     }
+    return []; // Return empty array if showtime data is not available
   };
 
   const handleSeatSelection = (seatId: string) => {
@@ -110,7 +120,7 @@ const Booking = () => {
     );
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -126,15 +136,45 @@ const Booking = () => {
     }));
   };
 
+  const isFormValid = () => {
+    const newErrors = {
+      email: '',
+      phone: '',
+    };
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    }
+    if (!formData.phone) {
+      newErrors.phone = 'Phone is required';
+    }
+
+    return newErrors; // Return the validation errors object
+  };
+
   const handleNext = () => {
+    if (activeStep === 1) { // Assuming step 1 is the personal information step
+      const validationErrors = isFormValid(); // Get the validation errors
+      setErrors(validationErrors); // Set the errors state
+
+      // Check if there are no errors before proceeding
+      if (!validationErrors.email && !validationErrors.phone) {
+        setActiveStep((prev) => prev + 1);
+      }
+    } else if (activeStep === 2) { // Assuming step 2 is the confirmation step
+       // No validation needed for confirmation, proceed to payment
+       setActiveStep((prev) => prev + 1);
+    } else {
     setActiveStep((prev) => prev + 1);
+    }
   };
 
   const handleBack = () => {
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       // Afficher les données dans la console pour le débogage
       console.log('Booking submitted:', {
@@ -153,6 +193,7 @@ const Booking = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           movieId: movieId,
@@ -160,6 +201,7 @@ const Booking = () => {
           city,
           theater,
           showtime: time,
+          date: new Date().toLocaleDateString('fr-FR'),
           seats: selectedSeats,
           name: formData.name,
           email: formData.email,
@@ -172,7 +214,10 @@ const Booking = () => {
       });
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        // Attempt to read the error message from the backend response
+        const errorData = await response.json();
+        const backendErrorMessage = errorData.error || 'Failed to create booking'; // Use backend error or a fallback
+        throw new Error(backendErrorMessage); // Throw an error with the backend message
       }
       
       const result = await response.json();
@@ -197,9 +242,10 @@ const Booking = () => {
           }
         } 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la création de la réservation:', error);
-      setError('Erreur lors de la création de la réservation. Veuillez réessayer.');
+      // Display the specific error message from the thrown error
+      setError(error.message || 'Erreur lors de la création de la réservation. Veuillez réessayer.');
     }
   };
 
@@ -263,55 +309,36 @@ const Booking = () => {
             
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2}>
+                {/* Render actual seats based on fetched data */}
                 {getAvailableSeats().length > 0 ? (
-                  getAvailableSeats().map((seat: any, index: number) => {
-                    const row = Math.floor(index / 10);
-                    const col = index % 10;
-                    const seatId = seat.number || `${String.fromCharCode(65 + row)}${col + 1}`;
+                  getAvailableSeats().map((seat: any) => { // Removed index as it's not used
+                    const seatId = seat.number; // Use seat.number as the unique identifier
                     return (
                       <Grid item key={seatId} xs={1}>
                         <Button
                           variant={selectedSeats.includes(seatId) ? 'contained' : 'outlined'}
                           onClick={() => handleSeatSelection(seatId)}
-                          disabled={seat.isBooked}
+                          disabled={seat.isBooked} // Keep disabled for already booked seats
                           color={seat.isBooked ? 'error' : (selectedSeats.includes(seatId) ? 'primary' : 'inherit')}
                           sx={{ 
                             minWidth: '35px',
                             height: '35px', 
                             p: 0,
-                            backgroundColor: seat.isBooked ? 'rgba(211, 47, 47, 0.1)' : 'inherit'
+                            backgroundColor: seat.isBooked ? 'rgba(211, 47, 47, 0.1)' : (selectedSeats.includes(seatId) ? undefined : 'inherit') // Keep light background for booked, default for others
                           }}
                         >
-                          {seat.number || seatId}
+                          {seat.number}
                         </Button>
                       </Grid>
                     );
                   })
                 ) : (
-                  Array.from({ length: 80 }, (_, index) => {
-                    const row = Math.floor(index / 10);
-                    const col = index % 10;
-                    const seatId = `${String.fromCharCode(65 + row)}${col + 1}`;
-                    const isBooked = Math.random() > 0.7; // 30% des sièges sont réservés aléatoirement
-                    return (
-                      <Grid item key={seatId} xs={1}>
-                        <Button
-                          variant={selectedSeats.includes(seatId) ? 'contained' : 'outlined'}
-                          onClick={() => handleSeatSelection(seatId)}
-                          disabled={isBooked}
-                          color={isBooked ? 'error' : (selectedSeats.includes(seatId) ? 'primary' : 'inherit')}
-                          sx={{ 
-                            minWidth: '35px',
-                            height: '35px', 
-                            p: 0,
-                            backgroundColor: isBooked ? 'rgba(211, 47, 47, 0.1)' : 'inherit'
-                          }}
-                        >
-                          {seatId}
-                        </Button>
-                      </Grid>
-                    );
-                  })
+                  // Display a message if showtime data or seats are not available
+                  <Grid item xs={12}>
+                      <Typography variant="h6" color="textSecondary" align="center">
+                          Seat information not available for this showtime.
+                      </Typography>
+                  </Grid>
                 )}
               </Grid>
             </Box>
@@ -337,7 +364,7 @@ const Booking = () => {
                   label="Nom Complet"
                   name="name"
                   value={formData.name}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -348,7 +375,10 @@ const Booking = () => {
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
+                  error={!!errors.email}
+                  helperText={errors.email}
+                  disabled={loading}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -358,7 +388,10 @@ const Booking = () => {
                   label="Téléphone"
                   name="phone"
                   value={formData.phone}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
+                  error={!!errors.phone}
+                  helperText={errors.phone}
+                  disabled={loading}
                 />
               </Grid>
             </Grid>
@@ -530,8 +563,7 @@ const Booking = () => {
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
           disabled={
             (activeStep === 0 && selectedSeats.length === 0) ||
-            (activeStep === 1 &&
-              (!formData.name || !formData.email || !formData.phone)) ||
+            (activeStep === 1 && !isFormValid()) ||
             (activeStep === 3 &&
               (!paymentInfo.cardNumber || !paymentInfo.expiry || !paymentInfo.cvc)) ||
             !movieId // Disable if movieId is undefined

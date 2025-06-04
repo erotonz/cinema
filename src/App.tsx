@@ -21,6 +21,7 @@ import Home from './pages/Home';
 import AdminMovies from './pages/AdminMovies';
 import AdminUsers from './pages/AdminUsers';
 import OrganizerDashboard from './pages/OrganizerDashboard';
+import OrganizerBookings from './pages/OrganizerBookings';
 
 import { getCurrentUser } from './services/auth';
 
@@ -72,10 +73,18 @@ const App = () => {
           <Route
             path="/organizer/dashboard"
             element={
-              <PrivateRoute>
+              <OrganizerRoute>
                 <OrganizerDashboard />
-              </PrivateRoute>
-            } 
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/bookings"
+            element={
+              <OrganizerRoute>
+                <OrganizerBookings />
+              </OrganizerRoute>
+            }
           />
         </Routes>
       </Router>

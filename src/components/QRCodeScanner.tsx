@@ -16,6 +16,7 @@ import {
   ListItemText,
   Divider
 } from '@mui/material';
+import { QrReader } from 'react-qr-reader';
 
 const QRCodeScanner: React.FC = () => {
   const [scanning, setScanning] = useState<boolean>(false);
@@ -120,9 +121,15 @@ const QRCodeScanner: React.FC = () => {
   };
 
   const handleConfirmEntry = () => {
-    alert('Entrée confirmée pour le client!');
+    alert('Entrée confirmée pour le client !');
     setDialogOpen(false);
     setScanResult(null);
+  };
+
+  const handleScan = (result: any) => {
+    if (result && result.text) {
+      handleScanSuccess(result.text);
+    }
   };
 
   return (
@@ -148,53 +155,29 @@ const QRCodeScanner: React.FC = () => {
           bgcolor: '#1a1a1a'
         }}
       >
-        <Box 
-          ref={containerRef}
+        <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+          <QrReader
+            constraints={{ facingMode: 'environment' }}
+            onResult={handleScan}
+            className="qr-reader"
+          />
+          <Box
           sx={{ 
-            width: '300px', 
-            height: '300px', 
-            mb: 2,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            border: '2px solid #333',
-            borderRadius: 2,
-            overflow: 'hidden',
-            bgcolor: '#000',
-            position: 'relative'
-          }}
-        >
-          <div 
-            id="qr-reader" 
-            style={{ 
-              width: '100%', 
-              height: '100%',
               position: 'absolute',
-              top: 0,
-              left: 0
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '200px',
+              height: '200px',
+              border: '2px solid #ff0066',
+              borderRadius: '8px',
+              pointerEvents: 'none',
             }}
           />
-          {!scanning && !loading && (
-            <Typography sx={{ color: '#fff', textAlign: 'center', p: 2, zIndex: 1 }}>
-              Appuyez sur le bouton ci-dessous pour scanner un QR code
-            </Typography>
-          )}
-          {loading && (
-            <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <CircularProgress />
-            </Box>
-          )}
         </Box>
-
-          <Button 
-            variant="contained" 
-          color={scanning ? "error" : "primary"}
-          onClick={scanning ? stopScanner : startScanner}
-            disabled={loading}
-          sx={{ minWidth: 200, mb: 1 }}
-          >
-          {scanning ? 'Arrêter le Scanner' : 'Démarrer le Scanner'}
-          </Button>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Position the QR code within the frame to scan
+        </Alert>
       </Paper>
 
       <Dialog 

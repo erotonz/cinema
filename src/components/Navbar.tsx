@@ -6,8 +6,12 @@ import {
   Typography,
   Button,
   Box,
+  ListItemIcon,
+  ListItemText,
+  MenuItem,
 } from '@mui/material';
 import { isAuthenticated, logout, getCurrentUser } from '../services/auth';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -39,18 +43,23 @@ const Navbar = () => {
             <>
               {user?.role === 'admin' && (
                 <>
-                <Button color="inherit" onClick={() => navigate('/admin/movies')}>
+                  <Button color="inherit" onClick={() => navigate('/admin/movies')}>
                     Gérer Films
                   </Button>
                   <Button color="inherit" onClick={() => navigate('/admin/users')}>
                     Gérer Utilisateurs
-                </Button>
+                  </Button>
                 </>
               )}
               {user?.role === 'organizer' && (
-                <Button color="inherit" onClick={() => navigate('/organizer/dashboard')}>
-                  Gérer Commentaires
-                </Button>
+                <>
+                  <Button color="inherit" onClick={() => navigate('/organizer/dashboard')}>
+                    Gérer Commentaires
+                  </Button>
+                  <Button color="inherit" onClick={() => navigate('/organizer/bookings')}>
+                    Gérer Réservations
+                  </Button>
+                </>
               )}
               <Typography variant="body1">
                 Welcome, {user?.username}

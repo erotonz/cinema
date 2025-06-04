@@ -29,6 +29,10 @@ const BookingSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add a showtime']
   },
+  date: {
+    type: String,
+    required: [true, 'Please add a session date']
+  },
   seats: [{
     type: String,
     required: [true, 'Please add seats']

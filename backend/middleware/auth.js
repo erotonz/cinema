@@ -28,6 +28,16 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'monSuperSecretJWT');
     console.log('Token décodé avec succès:', decoded);
+    console.log('Decoded ID:', decoded.id);
+    
+    // Check if decoded.id is potentially the problematic "guest" string or not a valid ObjectId
+    if (decoded.id === 'guest' || !require('mongoose').Types.ObjectId.isValid(decoded.id)) {
+        console.log('Invalid or guest ID in token:', decoded.id);
+        return res.status(401).json({
+            success: false,
+            error: 'Invalid user ID in token'
+        });
+    }
 
     const user = await User.findById(decoded.id);
     console.log('Utilisateur trouvé:', user ? 'Oui' : 'Non');

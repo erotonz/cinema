@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -112,7 +112,7 @@ const Home = () => {
         setLoading(true);
         setError(null);
         
-        // Charger les films actuellement à l'affiche
+        // Charger les films actuellement à l\'affiche
         const currentResponse = await fetch('http://localhost:5001/api/movies');
         if (!currentResponse.ok) {
           throw new Error(`HTTP error! status: ${currentResponse.status}`);
@@ -143,14 +143,30 @@ const Home = () => {
     fetchMovies();
   }, []);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-  };
+  }, []);
 
   // Obtenir les films en fonction de l'onglet sélectionné
-  const getDisplayedMovies = () => {
+  const getDisplayedMovies = useCallback(() => {
     return tabValue === 0 ? currentMovies : upcomingMovies;
-  };
+  }, [tabValue, currentMovies, upcomingMovies]);
+
+  const handleMovieClick = useCallback((movieId: string) => {
+    if (tabValue === 0) {
+      navigate(`/movies/${movieId}`);
+    }
+  }, [tabValue, navigate]);
+
+  const handleReviewClick = useCallback((e: React.MouseEvent, movieId: string) => {
+    e.stopPropagation();
+    navigate(`/movies/${movieId}?scrollTo=bottom`);
+  }, [navigate]);
+
+  const handleBookingClick = useCallback((e: React.MouseEvent, movieId: string) => {
+    e.stopPropagation();
+    navigate(`/movies/${movieId}`);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -178,7 +194,7 @@ const Home = () => {
       {/* Hero Section avec bannière principale */}
       <Box
         sx={{
-          width: '100%',
+          width: '100%%',
           position: 'relative',
           height: '600px',
           backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(https://source.unsplash.com/random/1920x1080?cinema)',
@@ -242,7 +258,7 @@ const Home = () => {
         {/* Grille des films - Conditionnelle basée sur l'onglet sélectionné */}
         <Grid container spacing={3}>
           {getDisplayedMovies().length === 0 ? (
-            <Box sx={{ width: '100%', textAlign: 'center', my: 4 }}>
+            <Box sx={{ width: '100%%', textAlign: 'center', my: 4 }}>
               <Typography variant="h6">
                 {tabValue === 0 ? 
                   "Aucun film à l'affiche actuellement" : 
@@ -252,7 +268,7 @@ const Home = () => {
           ) : (
             getDisplayedMovies().map((movie) => (
               <Grid item key={movie._id} xs={12} sm={6} md={2.4}>
-                <MovieCard onClick={() => tabValue === 0 ? navigate(`/movies/${movie._id}`) : null}>
+                <MovieCard onClick={() => handleMovieClick(movie._id)}>
                   <CardMedia
                     component="img"
                     image={movie.image}
@@ -307,10 +323,7 @@ const Home = () => {
                             <ActionButton 
                               size="small" 
                               variant="contained"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/movies/${movie._id}?scrollTo=bottom`);
-                              }}
+                              onClick={(e) => handleReviewClick(e, movie._id)}
                             >
                               Avis
                             </ActionButton>
@@ -319,10 +332,7 @@ const Home = () => {
                             <ActionButton 
                               size="small" 
                               variant="contained" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/movies/${movie._id}`);
-                              }}
+                              onClick={(e) => handleBookingClick(e, movie._id)}
                             >
                               Achat
                             </ActionButton>
@@ -331,7 +341,7 @@ const Home = () => {
                       </Box>
                     ) : (
                       // Overlay pour les films à venir
-                      <Box sx={{ mt: 'auto', mb: 2, width: '100%', textAlign: 'center' }}>
+                      <Box sx={{ mt: 'auto', mb: 2, width: '100%%', textAlign: 'center' }}>
                         <Typography variant="body2" sx={{ mb: 2, fontWeight: 'bold' }}>
                           Bientôt dans vos salles
                         </Typography>
@@ -400,3 +410,7 @@ const Home = () => {
 };
 
 export default Home; 
+
+
+
+

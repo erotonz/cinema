@@ -145,7 +145,7 @@ const Register = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 'Register'}
+              {loading ? <CircularProgress size={24} /> : "Register"}
             </Button>
             <Button
               fullWidth

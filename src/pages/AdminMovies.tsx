@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
   Box,
   Grid,
-  Paper,
   Button,
   TextField,
   Select,
@@ -18,7 +17,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormHelperText,
   Card,
   CardContent,
   CardMedia,
@@ -26,6 +24,7 @@ import {
   IconButton,
   Chip,
   Divider,
+  Alert,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
@@ -74,6 +73,37 @@ interface Movie {
   releaseDate: string;
   isUpcoming?: boolean;
   releaseExpectedDate?: string;
+  cities?: {
+    name: string;
+    theaters: {
+      name: string;
+      showtimes: { time: string }[];
+    }[];
+  }[];
+}
+
+// Define a type for the form state that includes fields as strings for input
+// and makes _id optional for new movies
+interface MovieFormState {
+  _id?: string; // Make _id optional
+  title: string;
+  image: string;
+  description: string;
+  rating: number; // Keep as number for the form initially
+  duration: string;
+  director: string;
+  genre: string; // String for the input field
+  cast: string; // String for the input field
+  releaseDate: string;
+  isUpcoming: boolean;
+  releaseExpectedDate?: string;
+  cities: { // Define cities structure here
+    name: string;
+    theaters: {
+      name: string;
+      showtimes: { time: string; numberOfSeats: number; seats?: boolean[]; }[]; // Add seats here as optional boolean array
+    }[];
+  }[];
 }
 
 const AdminMovies = () => {
@@ -82,12 +112,11 @@ const AdminMovies = () => {
   const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
   const [upcomingMovies, setUpcomingMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // États pour le dialogue de nouveau film
   const [openDialog, setOpenDialog] = useState(false);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
-  const [movieForm, setMovieForm] = useState({
+  const [movieForm, setMovieForm] = useState<MovieFormState>({
     title: '',
     description: '',
     image: '',
@@ -98,24 +127,25 @@ const AdminMovies = () => {
     genre: '',
     releaseDate: new Date().toISOString().split('T')[0],
     releaseExpectedDate: new Date().toISOString().split('T')[0],
-    isUpcoming: false
+    isUpcoming: false,
+    cities: []
   });
   
   // État pour le dialogue de confirmation de suppression
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
   
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<any>(null);
+  const [selectedShowtime, setSelectedShowtime] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  
   // Token d'authentification (normalement stocké dans un contexte ou localStorage)
   const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-  useEffect(() => {
-    fetchMovies();
-  }, []);
-  
-  const fetchMovies = async () => {
+  const fetchMovies = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
       
       // Charger tous les films (y compris actuels et à venir)
       const allMoviesResponse = await fetch('http://localhost:5001/api/movies?all=true', {
@@ -142,11 +172,14 @@ const AdminMovies = () => {
       }
     } catch (err: any) {
       console.error('Error fetching movies:', err);
-      setError(err.message || 'Failed to load movies');
     } finally {
       setLoading(false);
     }
-  };
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchMovies();
+  }, [fetchMovies]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -154,20 +187,33 @@ const AdminMovies = () => {
   
   const handleDialogOpen = (isUpcoming = false, movie: Movie | null = null) => {
     if (movie) {
-      // Mode édition
+      // Mode édition: Transformer les données du film pour qu'elles correspondent à l'état du formulaire
       setEditingMovie(movie);
       setMovieForm({
-        title: movie.title,
-        description: movie.description,
-        image: movie.image,
-        rating: movie.rating,
-        duration: movie.duration,
-        director: movie.director,
+        _id: movie._id, // Include _id for editing
+        title: movie.title || '',
+        description: movie.description || '',
+        image: movie.image || '',
+        rating: movie.rating || 0,
+        duration: movie.duration || '',
+        director: movie.director || '',
         cast: movie.cast ? movie.cast.join(', ') : '',
         genre: movie.genre ? movie.genre.join(', ') : '',
-        releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        releaseExpectedDate: movie.releaseExpectedDate ? new Date(movie.releaseExpectedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        isUpcoming: Boolean(movie.isUpcoming)
+        releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toISOString().split('T')[0] : '',
+        releaseExpectedDate: movie.releaseExpectedDate ? new Date(movie.releaseExpectedDate).toISOString().split('T')[0] : '',
+        isUpcoming: Boolean(movie.isUpcoming),
+        cities: (movie.cities || []).map(city => ({
+          name: city.name || '',
+          theaters: (city.theaters || []).map(theater => ({
+            name: theater.name || '',
+            showtimes: (theater.showtimes || []).map((showtime: any) => ({
+              time: showtime.time || '',
+              // Populate numberOfSeats from the length of the seats array from the backend
+              numberOfSeats: showtime.seats?.length || 0
+              // Do NOT include the 'seats' array in the form state
+            }))
+          }))
+        }))
       });
     } else {
       // Mode création
@@ -183,7 +229,8 @@ const AdminMovies = () => {
         genre: '',
         releaseDate: new Date().toISOString().split('T')[0],
         releaseExpectedDate: new Date().toISOString().split('T')[0],
-        isUpcoming: isUpcoming
+        isUpcoming: isUpcoming,
+        cities: []
       });
     }
     setOpenDialog(true);
@@ -222,22 +269,124 @@ const AdminMovies = () => {
     }));
   };
   
+  // Handlers for managing cities, theaters, and showtimes
+  const handleAddCity = () => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: [...(prev.cities || []), { name: '', theaters: [] }]
+    }));
+  };
+
+  const handleRemoveCity = (cityIndex: number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).filter((_, index) => index !== cityIndex)
+    }));
+  };
+
+  const handleCityNameChange = (cityIndex: number, name: string) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, index) => 
+        index === cityIndex ? { ...city, name } : city
+      )
+    }));
+  };
+
+  const handleAddTheater = (cityIndex: number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, index) => 
+        index === cityIndex ? { ...city, theaters: [...city.theaters, { name: '', showtimes: [] }] } : city
+      )
+    }));
+  };
+
+  const handleRemoveTheater = (cityIndex: number, theaterIndex: number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, cIndex) => 
+        cIndex === cityIndex ? { ...city, theaters: city.theaters.filter((_, tIndex) => tIndex !== theaterIndex) } : city
+      )
+    }));
+  };
+
+  const handleTheaterNameChange = (cityIndex: number, theaterIndex: number, name: string) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, cIndex) => 
+        cIndex === cityIndex ? { ...city, theaters: city.theaters.map((theater, tIndex) => tIndex === theaterIndex ? { ...theater, name } : theater) } : city
+      )
+    }));
+  };
+
+  const handleAddShowtime = (cityIndex: number, theaterIndex: number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, cIndex) =>
+        cIndex === cityIndex ? { ...city, theaters: city.theaters.map((theater, tIndex) => tIndex === theaterIndex ? { ...theater, showtimes: [...theater.showtimes, { time: '', numberOfSeats: 0 }] } : theater) } : city
+      )
+    }));
+  };
+
+  const handleRemoveShowtime = (cityIndex: number, theaterIndex: number, showtimeIndex: number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, cIndex) => 
+        cIndex === cityIndex ? { ...city, theaters: city.theaters.map((theater, tIndex) => tIndex === theaterIndex ? { ...theater, showtimes: theater.showtimes.filter((_, sIndex) => sIndex !== showtimeIndex) } : theater) } : city
+      )
+    }));
+  };
+
+  const handleShowtimeChange = (cityIndex: number, theaterIndex: number, showtimeIndex: number, field: string, value: string | number) => {
+    setMovieForm(prev => ({
+      ...prev,
+      cities: (prev.cities || []).map((city, cIndex) =>
+        cIndex === cityIndex ? { ...city, theaters: city.theaters.map((theater, tIndex) => tIndex === theaterIndex ? { ...theater, showtimes: theater.showtimes.map((showtime, sIndex) => sIndex === showtimeIndex ? { ...showtime, [field]: value } : showtime) } : theater) } : city
+      )
+    }));
+  };
+
   const handleMovieSubmit = async () => {
     try {
-      // Préparation des données
-      const movieData = {
+      // Préparation des données pour l'envoi au backend
+      const movieDataForBackend = {
         title: movieForm.title,
         description: movieForm.description,
         image: movieForm.image,
-        rating: parseFloat(movieForm.rating.toString()),
+        // Safely parse rating, default to 0 if undefined or null
+        rating: parseFloat((movieForm.rating ?? 0).toString()),
         duration: movieForm.duration,
         director: movieForm.director,
-        cast: movieForm.cast.split(',').map(item => item.trim()),
-        genre: movieForm.genre.split(',').map(item => item.trim()),
+        // Convert comma-separated strings to arrays
+        cast: movieForm.cast.split(',').map((item: string) => item.trim()).filter((item: string) => item),
+        genre: movieForm.genre.split(',').map((item: string) => item.trim()).filter((item: string) => item),
         releaseDate: movieForm.releaseDate,
-        releaseExpectedDate: movieForm.releaseExpectedDate,
-        isUpcoming: movieForm.isUpcoming
+        isUpcoming: movieForm.isUpcoming,
+        ...(movieForm.isUpcoming && { releaseExpectedDate: movieForm.releaseExpectedDate }), // Include if upcoming
+        // Transform cities, theaters, and showtimes to match backend structure (using 'seats' instead of 'numberOfSeats')
+        cities: (movieForm.cities || []).map(city => ({
+          name: city.name,
+          theaters: (city.theaters || []).map(theater => ({
+            name: theater.name,
+            showtimes: (theater.showtimes || []).map((showtime: any) => ({
+              time: showtime.time,
+              // Convert numberOfSeats from the form to an array of booleans for the 'seats' field for the backend
+              numberOfSeats: parseInt(showtime.numberOfSeats, 10) || 0,
+              // Do NOT include the 'seats' array in the form state
+            }))
+          }))
+        })),
       };
+      
+      // Include _id if editing
+      if (editingMovie && editingMovie._id) {
+        (movieDataForBackend as any)._id = editingMovie._id; // Add _id for PUT requests
+        // Explicitly remove the top-level showtimes field if it exists (from old data)
+        if ((movieDataForBackend as any).showtimes !== undefined) {
+          delete (movieDataForBackend as any).showtimes;
+        }
+      }
       
       // URL et méthode selon qu'on crée ou modifie
       let url = 'http://localhost:5001/api/movies';
@@ -258,7 +407,7 @@ const AdminMovies = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify(movieData)
+        body: JSON.stringify(movieDataForBackend)
       });
       
       if (!response.ok) {
@@ -271,7 +420,6 @@ const AdminMovies = () => {
       
     } catch (err: any) {
       console.error('Error saving movie:', err);
-      setError(err.message || 'Failed to save movie');
     }
   };
   
@@ -296,7 +444,6 @@ const AdminMovies = () => {
       
     } catch (err: any) {
       console.error('Error deleting movie:', err);
-      setError(err.message || 'Failed to delete movie');
       handleDeleteDialogClose();
     }
   };
@@ -319,8 +466,50 @@ const AdminMovies = () => {
       
     } catch (err: any) {
       console.error('Error releasing movie:', err);
-      setError(err.message || 'Failed to release movie');
     }
+  };
+  
+  const handleCancelSession = async () => {
+    try {
+      if (!selectedMovie || !selectedShowtime) {
+        setCancelError('Veuillez remplir tous les champs');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5001/api/movies/${selectedMovie._id}/cancel-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          showtime: selectedShowtime,
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('Session cancelled successfully:', data);
+        alert('Séance annulée avec succès !');
+        setCancelDialogOpen(false);
+        setSelectedMovie(null);
+        setSelectedShowtime('');
+        fetchMovies();
+      } else {
+        setCancelError(data.error || 'Erreur lors de l\'annulation de la séance');
+      }
+    } catch (error: any) {
+      console.error('Error canceling session:', error);
+      setCancelError(error.message || 'Erreur lors de l\'annulation de la séance');
+    }
+  };
+
+  const openCancelDialog = (movie: any) => {
+    setSelectedMovie(movie);
+    setSelectedShowtime('');
+    setCancelError(null);
+    setCancelDialogOpen(true);
   };
   
   // Affichage des films actuels ou à venir selon l'onglet
@@ -448,6 +637,14 @@ const AdminMovies = () => {
                       >
                         <DeleteIcon />
                       </IconButton>
+                      <Button
+                        size="small"
+                        color="warning"
+                        onClick={() => openCancelDialog(movie)}
+                        sx={{ ml: 1 }}
+                      >
+                        Annuler Séance
+                      </Button>
                     </Box>
                     {tabValue === 1 && (
                       <Button 
@@ -526,7 +723,7 @@ const AdminMovies = () => {
                 fullWidth
                 variant="outlined"
                 value={movieForm.cast}
-                onChange={handleInputChange}
+                onChange={(e) => setMovieForm((prev) => ({ ...prev, cast: e.target.value }))}
                 required
               />
             </Grid>
@@ -537,7 +734,7 @@ const AdminMovies = () => {
                 fullWidth
                 variant="outlined"
                 value={movieForm.genre}
-                onChange={handleInputChange}
+                onChange={(e) => setMovieForm((prev) => ({ ...prev, genre: e.target.value }))}
                 required
               />
             </Grid>
@@ -617,6 +814,78 @@ const AdminMovies = () => {
                 />
               </Grid>
             )}
+
+            {/* Showtime Management Section */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" gutterBottom>Gestion des Séances</Typography>
+              
+              {(movieForm.cities || []).map((city, cityIndex) => (
+                <Box key={cityIndex} sx={{ mb: 3, p: 2, border: '1px solid #ccc', borderRadius: 1 }}>
+                  <Typography variant="subtitle1" gutterBottom>Ville {cityIndex + 1}</Typography>
+                  <TextField
+                    label="Nom de la ville"
+                    value={city.name}
+                    onChange={(e) => handleCityNameChange(cityIndex, e.target.value)}
+                    fullWidth
+                    margin="normal"
+                    size="small"
+                  />
+                  <Button onClick={() => handleRemoveCity(cityIndex)} color="error">Supprimer la ville</Button>
+
+                  {(city.theaters || []).map((theater, theaterIndex) => (
+                    <Box key={theaterIndex} sx={{ ml: 2, mt: 2, p: 2, border: '1px dashed #ddd', borderRadius: 1 }}>
+                      <Typography variant="subtitle2" gutterBottom>Cinéma {theaterIndex + 1}</Typography>
+                      <TextField
+                        label="Nom du cinéma"
+                        value={theater.name}
+                        onChange={(e) => handleTheaterNameChange(cityIndex, theaterIndex, e.target.value)}
+                        fullWidth
+                        margin="normal"
+                        size="small"
+                      />
+                      <Button onClick={() => handleRemoveTheater(cityIndex, theaterIndex)} color="error">Supprimer le cinéma</Button>
+
+                      {(theater.showtimes || []).map((showtime, showtimeIndex) => (
+                        <Box key={showtimeIndex} sx={{ ml: 2, mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TextField
+                            label="Heure de la séance"
+                            value={showtime.time}
+                            onChange={(e) => handleShowtimeChange(cityIndex, theaterIndex, showtimeIndex, 'time', e.target.value)}
+                            fullWidth
+                            size="small"
+                          />
+                          <TextField
+                            label="Nombre de places"
+                            type="number"
+                            value={showtime.numberOfSeats}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
+                              handleShowtimeChange(cityIndex, theaterIndex, showtimeIndex, 'numberOfSeats', value.toString());
+                            }}
+                            fullWidth
+                            size="small"
+                            inputProps={{ min: 0 }}
+                          />
+                          <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Button
+                              onClick={() => handleRemoveShowtime(cityIndex, theaterIndex, showtimeIndex)}
+                              color="error"
+                              size="small"
+                            >
+                              Supprimer la séance
+                            </Button>
+                          </Grid>
+                        </Box>
+                      ))}
+                      <Button onClick={() => handleAddShowtime(cityIndex, theaterIndex)} startIcon={<AddIcon />} sx={{ mt: 1 }}>Ajouter une séance</Button>
+                    </Box>
+                  ))}
+                  <Button onClick={() => handleAddTheater(cityIndex)} startIcon={<AddIcon />} sx={{ mt: 1 }}>Ajouter un cinéma</Button>
+                </Box>
+              ))}
+              <Button onClick={handleAddCity} startIcon={<AddIcon />}>Ajouter une ville</Button>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -646,8 +915,56 @@ const AdminMovies = () => {
         </DialogActions>
       </Dialog>
       
+      {/* Dialog d'annulation de séance */}
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
+        <DialogTitle>Annuler une séance</DialogTitle>
+        <DialogContent>
+          {cancelError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {cancelError}
+            </Alert>
+          )}
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Film: {selectedMovie?.title}
+            </Typography>
+
+            <TextField
+              select
+              fullWidth
+              label="Horaire"
+              value={selectedShowtime}
+              onChange={(e) => setSelectedShowtime(e.target.value)}
+              sx={{ mt: 2 }}
+            >
+              {selectedMovie?.cities?.map((city: any) =>
+                city.theaters?.map((theater: any) =>
+                  theater.showtimes?.map((showtime: any) => (
+                    <MenuItem key={showtime.time} value={showtime.time}>
+                      {showtime.time} - {theater.name} ({city.name})
+                    </MenuItem>
+                  ))
+                )
+              )}
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={handleCancelSession}
+            color="error"
+            variant="contained"
+          >
+            Confirmer l'annulation
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
     </Container>
   );
 };
 
 export default AdminMovies;
+
